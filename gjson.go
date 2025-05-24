@@ -8,6 +8,7 @@
 package gjson
 
 import (
+	"iter"
 	"strconv"
 	"strings"
 	"time"
@@ -230,80 +231,83 @@ func (t Result) IsBool() bool {
 // value of each item. If the result is an Array, the iterator will only pass
 // the value of each item. If the result is not a JSON array or object, the
 // iterator will pass back one value equal to the result.
-func (t Result) ForEach(iterator func(key, value Result) bool) {
-	if !t.Exists() {
-		return
-	}
-	if t.Type != JSON {
-		iterator(Result{}, t)
-		return
-	}
-	json := t.Raw
-	var obj bool
-	var i int
-	var key, value Result
-	for ; i < len(json); i++ {
-		if json[i] == '{' {
-			i++
-			key.Type = String
-			obj = true
-			break
-		} else if json[i] == '[' {
-			i++
-			key.Type = Number
-			key.Num = -1
-			break
-		}
-		if json[i] > ' ' {
+func (t Result) ForEach() iter.Seq2[Result, Result] {
+	return func(yield func(Result, Result) bool) {
+		if !t.Exists() {
 			return
 		}
-	}
-	var str string
-	var vesc bool
-	var ok bool
-	var idx int
-	for ; i < len(json); i++ {
-		if obj {
-			if json[i] != '"' {
-				continue
+		if t.Type != JSON {
+			if !yield(Result{}, t) {
+				return
+			}
+		}
+		json := t.Raw
+		var obj bool
+		var i int
+		var key, value Result
+		for ; i < len(json); i++ {
+			if json[i] == '{' {
+				i++
+				key.Type = String
+				obj = true
+				break
+			} else if json[i] == '[' {
+				i++
+				key.Type = Number
+				key.Num = -1
+				break
+			}
+			if json[i] > ' ' {
+				return
+			}
+		}
+		var str string
+		var vesc bool
+		var ok bool
+		var idx int
+		for ; i < len(json); i++ {
+			if obj {
+				if json[i] != '"' {
+					continue
+				}
+				s := i
+				i, str, vesc, ok = parseString(json, i+1)
+				if !ok {
+					return
+				}
+				if vesc {
+					key.Str = unescape(str[1 : len(str)-1])
+				} else {
+					key.Str = str[1 : len(str)-1]
+				}
+				key.Raw = str
+				key.Index = s + t.Index
+			} else {
+				key.Num += 1
+			}
+			for ; i < len(json); i++ {
+				if json[i] <= ' ' || json[i] == ',' || json[i] == ':' {
+					continue
+				}
+				break
 			}
 			s := i
-			i, str, vesc, ok = parseString(json, i+1)
+			i, value, ok = parseAny(json, i, true)
 			if !ok {
 				return
 			}
-			if vesc {
-				key.Str = unescape(str[1 : len(str)-1])
+			if t.Indexes != nil {
+				if idx < len(t.Indexes) {
+					value.Index = t.Indexes[idx]
+				}
 			} else {
-				key.Str = str[1 : len(str)-1]
+				value.Index = s + t.Index
 			}
-			key.Raw = str
-			key.Index = s + t.Index
-		} else {
-			key.Num += 1
-		}
-		for ; i < len(json); i++ {
-			if json[i] <= ' ' || json[i] == ',' || json[i] == ':' {
-				continue
+			if !yield(key, value) {
+				return
 			}
-			break
+			idx++
 		}
-		s := i
-		i, value, ok = parseAny(json, i, true)
-		if !ok {
-			return
-		}
-		if t.Indexes != nil {
-			if idx < len(t.Indexes) {
-				value.Index = t.Indexes[idx]
-			}
-		} else {
-			value.Index = s + t.Index
-		}
-		if !iterator(key, value) {
-			return
-		}
-		idx++
 	}
 }
 
