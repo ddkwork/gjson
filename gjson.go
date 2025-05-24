@@ -322,7 +322,7 @@ func (t Result) Map() map[string]Result {
 func (t Result) Get(path string) Result {
 	r := Get(t.Raw, path)
 	if r.Indexes != nil {
-		for i := 0; i < len(r.Indexes); i++ {
+		for i := range r.Indexes {
 			r.Indexes[i] += t.Index
 		}
 	} else {
@@ -333,9 +333,9 @@ func (t Result) Get(path string) Result {
 
 type arrayOrMapResult struct {
 	a  []Result
-	ai []interface{}
+	ai []any
 	o  map[string]Result
-	oi map[string]interface{}
+	oi map[string]any
 	vc byte
 }
 
@@ -370,13 +370,13 @@ func (t Result) arrayOrMap(vc byte, valueize bool) (r arrayOrMapResult) {
 	}
 	if r.vc == '{' {
 		if valueize {
-			r.oi = make(map[string]interface{})
+			r.oi = make(map[string]any)
 		} else {
 			r.o = make(map[string]Result)
 		}
 	} else {
 		if valueize {
-			r.ai = make([]interface{}, 0)
+			r.ai = make([]any, 0)
 		} else {
 			r.a = make([]Result, 0)
 		}
@@ -449,11 +449,11 @@ func (t Result) arrayOrMap(vc byte, valueize bool) (r arrayOrMapResult) {
 end:
 	if t.Indexes != nil {
 		if len(t.Indexes) != len(r.a) {
-			for i := 0; i < len(r.a); i++ {
+			for i := range r.a {
 				r.a[i].Index = 0
 			}
 		} else {
-			for i := 0; i < len(r.a); i++ {
+			for i := range r.a {
 				r.a[i].Index = t.Indexes[i]
 			}
 		}
@@ -667,7 +667,7 @@ func (t Result) Exists() bool {
 //	nil, for JSON null
 //	map[string]interface{}, for JSON objects
 //	[]interface{}, for JSON arrays
-func (t Result) Value() interface{} {
+func (t Result) Value() any {
 	if t.Type == String {
 		return t.Str
 	}
@@ -1817,7 +1817,7 @@ func splitPossiblePipe(path string) (left, right string, ok bool) {
 	// take a quick peek for the pipe character. If found we'll split the piped
 	// part of the path into the c.pipe field and shorten the rp.
 	var possible bool
-	for i := 0; i < len(path); i++ {
+	for i := range len(path) {
 		if path[i] == '|' {
 			possible = true
 			break
@@ -1997,7 +1997,7 @@ func nameOfLast(path string) string {
 }
 
 func isSimpleName(component string) bool {
-	for i := 0; i < len(component); i++ {
+	for i := range len(component) {
 		if component[i] < ' ' {
 			return false
 		}
@@ -2624,7 +2624,7 @@ func validstring(data []byte, i int) (outi int, ok bool) {
 				return i, false
 			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
 			case 'u':
-				for j := 0; j < 4; j++ {
+				for range 4 {
 					i++
 					if i >= len(data) {
 						return i, false
@@ -2950,13 +2950,13 @@ func ModifierExists(name string, fn func(json, arg string) string) bool {
 
 // cleanWS remove any non-whitespace from string
 func cleanWS(s string) string {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		switch s[i] {
 		case ' ', '\t', '\n', '\r':
 			continue
 		default:
 			var s2 []byte
-			for i := 0; i < len(s); i++ {
+			for i := range len(s) {
 				switch s[i] {
 				case ' ', '\t', '\n', '\r':
 					s2 = append(s2, s[i])
@@ -3208,7 +3208,7 @@ func modJoin(json, arg string) string {
 			})
 			return true
 		})
-		for i := 0; i < len(keys); i++ {
+		for i := range keys {
 			if i > 0 {
 				out = append(out, ',')
 			}

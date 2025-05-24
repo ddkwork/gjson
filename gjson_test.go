@@ -28,7 +28,7 @@ func TestRandomData(t *testing.T) {
 	}()
 	rand.Seed(time.Now().UnixNano())
 	b := make([]byte, 200)
-	for i := 0; i < 2000000; i++ {
+	for range 2000000 {
 		n, err := rand.Read(b[:rand.Int()%len(b)])
 		if err != nil {
 			t.Fatal(err)
@@ -42,7 +42,7 @@ func TestRandomData(t *testing.T) {
 func TestRandomValidStrings(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	b := make([]byte, 200)
-	for i := 0; i < 100000; i++ {
+	for range 100000 {
 		n, err := rand.Read(b[:rand.Int()%len(b)])
 		if err != nil {
 			t.Fatal(err)
@@ -222,7 +222,7 @@ func TestManyVariousPathCounts(t *testing.T) {
 	expects := []string{"a", "b", "c"}
 	for _, count := range counts {
 		var gpaths []string
-		for i := 0; i < count; i++ {
+		for i := range count {
 			if i < len(paths) {
 				gpaths = append(gpaths, paths[i])
 			} else {
@@ -230,7 +230,7 @@ func TestManyVariousPathCounts(t *testing.T) {
 			}
 		}
 		results := GetMany(json, gpaths...)
-		for i := 0; i < len(paths); i++ {
+		for i := range paths {
 			if results[i].String() != expects[i] {
 				t.Fatalf("expected '%v', got '%v'", expects[i],
 					results[i].String())
@@ -241,12 +241,12 @@ func TestManyVariousPathCounts(t *testing.T) {
 func TestManyRecursion(t *testing.T) {
 	var json string
 	var path string
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		json += `{"a":`
 		path += ".a"
 	}
 	json += `"b"`
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		json += `}`
 	}
 	path = path[1:]
@@ -614,7 +614,7 @@ func TestBasic5(t *testing.T) {
 		t.Fatal("expecting '"+`{"what is a wren?":"a bird"}`+"'", "got",
 			token.String())
 	}
-	_ = token.Value().(map[string]interface{})
+	_ = token.Value().(map[string]any)
 
 	if get(basicJSON, "").Value() != nil {
 		t.Fatal("should be nil")
@@ -622,8 +622,8 @@ func TestBasic5(t *testing.T) {
 
 	get(basicJSON, "vals.hello")
 
-	type msi = map[string]interface{}
-	type fi = []interface{}
+	type msi = map[string]any
+	type fi = []any
 	mm := Parse(basicJSON).Value().(msi)
 	fn := mm["loggy"].(msi)["programmers"].(fi)[1].(msi)["firstName"].(string)
 	if fn != "Jason" {
@@ -776,8 +776,8 @@ var exampleJSON = `{
 }`
 
 func TestUnmarshalMap(t *testing.T) {
-	var m1 = Parse(exampleJSON).Value().(map[string]interface{})
-	var m2 map[string]interface{}
+	var m1 = Parse(exampleJSON).Value().(map[string]any)
+	var m2 map[string]any
 	if err := json.Unmarshal([]byte(exampleJSON), &m2); err != nil {
 		t.Fatal(err)
 	}
@@ -874,12 +874,12 @@ func testMany(t *testing.T, json string, paths, expected []string) {
 func testManyAny(t *testing.T, json string, paths, expected []string,
 	bytes bool) {
 	var result []Result
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		var which string
 		if i == 0 {
 			which = "Get"
 			result = nil
-			for j := 0; j < len(expected); j++ {
+			for j := range expected {
 				if bytes {
 					result = append(result, GetBytes([]byte(json), paths[j]))
 				} else {
@@ -894,7 +894,7 @@ func testManyAny(t *testing.T, json string, paths, expected []string,
 				result = GetMany(json, paths...)
 			}
 		}
-		for j := 0; j < len(expected); j++ {
+		for j := range expected {
 			if result[j].String() != expected[j] {
 				t.Fatalf("Using key '%s' for '%s'\nexpected '%v', got '%v'",
 					paths[j], which, expected[j], result[j].String())
@@ -939,7 +939,7 @@ func TestRandomMany(t *testing.T) {
 	}()
 	rand.Seed(time.Now().UnixNano())
 	b := make([]byte, 512)
-	for i := 0; i < 50000; i++ {
+	for range 50000 {
 		n, err := rand.Read(b[:rand.Int()%len(b)])
 		if err != nil {
 			t.Fatal(err)
@@ -949,12 +949,12 @@ func TestRandomMany(t *testing.T) {
 		for i := range paths {
 			var b []byte
 			n := rand.Int() % 5
-			for j := 0; j < n; j++ {
+			for j := range n {
 				if j > 0 {
 					b = append(b, '.')
 				}
 				nn := rand.Int() % 10
-				for k := 0; k < nn; k++ {
+				for range nn {
 					b = append(b, 'a'+byte(rand.Int()%26))
 				}
 			}
@@ -1358,21 +1358,21 @@ func TestArrayValues(t *testing.T) {
 }
 
 func BenchmarkValid(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Valid(complicatedJSON)
 	}
 }
 
 func BenchmarkValidBytes(b *testing.B) {
 	complicatedJSON := []byte(complicatedJSON)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ValidBytes(complicatedJSON)
 	}
 }
 
 func BenchmarkGoStdlibValidBytes(b *testing.B) {
 	complicatedJSON := []byte(complicatedJSON)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		json.Valid(complicatedJSON)
 	}
 }
@@ -2348,7 +2348,7 @@ func TestNaNInf(t *testing.T) {
 		math.Copysign(0, -1), 0}
 
 	assert(t, int(Get(json, `#`).Int()) == len(raws))
-	for i := 0; i < len(raws); i++ {
+	for i := range raws {
 		r := Get(json, fmt.Sprintf("%d", i))
 		assert(t, r.Raw == raws[i])
 		assert(t, r.Num == nums[i] || (math.IsNaN(r.Num) && math.IsNaN(nums[i])))
@@ -2454,7 +2454,7 @@ func TestQueryGetPath(t *testing.T) {
 		Get(readmeJSON, "friends.#(last=Murphy)#").Paths(readmeJSON), " ") ==
 		"friends.0 friends.2")
 	arr := Get(readmeJSON, "friends.#.first").Array()
-	for i := 0; i < len(arr); i++ {
+	for i := range arr {
 		assert(t, arr[i].Path(readmeJSON) == fmt.Sprintf("friends.%d.first", i))
 	}
 }
@@ -2490,7 +2490,7 @@ func TestStaticJSON(t *testing.T) {
 func TestArrayKeys(t *testing.T) {
 	N := 100
 	json := "["
-	for i := 0; i < N; i++ {
+	for i := range N {
 		if i > 0 {
 			json += ","
 		}
@@ -2549,7 +2549,7 @@ func TestGroup(t *testing.T) {
 	assert(t, res == `["123"]`)
 }
 
-func goJSONMarshal(i interface{}) ([]byte, error) {
+func goJSONMarshal(i any) ([]byte, error) {
 	buffer := &bytes.Buffer{}
 	encoder := json.NewEncoder(buffer)
 	encoder.SetEscapeHTML(!DisableEscapeHTML)
