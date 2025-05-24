@@ -2976,7 +2976,7 @@ func cleanWS(s string) string {
 func modPretty(json, arg string) string {
 	if len(arg) > 0 {
 		opts := *pretty.DefaultOptions
-		Parse(arg).ForEach(func(key, value Result) bool {
+		for key, value := range Parse(arg).ForEach() {
 			switch key.String() {
 			case "sortKeys":
 				opts.SortKeys = value.Bool()
@@ -2987,8 +2987,7 @@ func modPretty(json, arg string) string {
 			case "width":
 				opts.Width = int(value.Int())
 			}
-			return true
-		})
+		}
 		return bytesString(pretty.PrettyOptions(stringBytes(json), &opts))
 	}
 	return bytesString(pretty.Pretty(stringBytes(json)))
@@ -3009,10 +3008,9 @@ func modReverse(json, arg string) string {
 	res := Parse(json)
 	if res.IsArray() {
 		var values []Result
-		res.ForEach(func(_, value Result) bool {
+		for _, value := range res.ForEach() {
 			values = append(values, value)
-			return true
-		})
+		}
 		out := make([]byte, 0, len(json))
 		out = append(out, '[')
 		for i, j := len(values)-1, 0; i >= 0; i, j = i-1, j+1 {
@@ -3026,10 +3024,9 @@ func modReverse(json, arg string) string {
 	}
 	if res.IsObject() {
 		var keyValues []Result
-		res.ForEach(func(key, value Result) bool {
+		for key, value := range res.ForEach() {
 			keyValues = append(keyValues, key, value)
-			return true
-		})
+		}
 		out := make([]byte, 0, len(json))
 		out = append(out, '{')
 		for i, j := len(keyValues)-2, 0; i >= 0; i, j = i-2, j+1 {
@@ -3062,26 +3059,26 @@ func modFlatten(json, arg string) string {
 	}
 	var deep bool
 	if arg != "" {
-		Parse(arg).ForEach(func(key, value Result) bool {
-			if key.String() == "deep" {
-				deep = value.Bool()
+		for k, v := range Parse(arg).ForEach() {
+			if k.String() == "deep" {
+				deep = v.Bool()
+				//break// todo
 			}
-			return true
-		})
+		}
 	}
 	var out []byte
 	out = append(out, '[')
 	var idx int
-	res.ForEach(func(_, value Result) bool {
+	for _, v := range res.ForEach() {
 		var raw string
-		if value.IsArray() {
+		if v.IsArray() {
 			if deep {
-				raw = unwrap(modFlatten(value.Raw, arg))
+				raw = unwrap(modFlatten(v.Raw, arg))
 			} else {
-				raw = unwrap(value.Raw)
+				raw = unwrap(v.Raw)
 			}
 		} else {
-			raw = value.Raw
+			raw = v.Raw
 		}
 		raw = strings.TrimSpace(raw)
 		if len(raw) > 0 {
@@ -3091,8 +3088,7 @@ func modFlatten(json, arg string) string {
 			out = append(out, raw...)
 			idx++
 		}
-		return true
-	})
+	}
 	out = append(out, ']')
 	return bytesString(out)
 }
@@ -3109,7 +3105,7 @@ func modKeys(json, arg string) string {
 	var out strings.Builder
 	out.WriteByte('[')
 	var i int
-	v.ForEach(func(key, _ Result) bool {
+	for key := range v.ForEach() {
 		if i > 0 {
 			out.WriteByte(',')
 		}
@@ -3119,8 +3115,7 @@ func modKeys(json, arg string) string {
 			out.WriteString("null")
 		}
 		i++
-		return true
-	})
+	}
 	out.WriteByte(']')
 	return out.String()
 }
@@ -3139,14 +3134,13 @@ func modValues(json, arg string) string {
 	var out strings.Builder
 	out.WriteByte('[')
 	var i int
-	v.ForEach(func(_, value Result) bool {
+	for _, value := range v.ForEach() {
 		if i > 0 {
 			out.WriteByte(',')
 		}
 		out.WriteString(value.Raw)
 		i++
-		return true
-	})
+	}
 	out.WriteByte(']')
 	return out.String()
 }
@@ -3171,47 +3165,43 @@ func modJoin(json, arg string) string {
 	}
 	var preserve bool
 	if arg != "" {
-		Parse(arg).ForEach(func(key, value Result) bool {
+		for key, value := range Parse(arg).ForEach() {
 			if key.String() == "preserve" {
 				preserve = value.Bool()
 			}
-			return true
-		})
+		}
 	}
 	var out []byte
 	out = append(out, '{')
 	if preserve {
 		// Preserve duplicate keys.
 		var idx int
-		res.ForEach(func(_, value Result) bool {
+		for _, value := range res.ForEach() {
 			if !value.IsObject() {
-				return true
+				break
 			}
 			if idx > 0 {
 				out = append(out, ',')
 			}
 			out = append(out, unwrap(value.Raw)...)
 			idx++
-			return true
-		})
+		}
 	} else {
 		// Deduplicate keys and generate an object with stable ordering.
 		var keys []Result
 		kvals := make(map[string]Result)
-		res.ForEach(func(_, value Result) bool {
+		for _, value := range res.ForEach() {
 			if !value.IsObject() {
-				return true
+				break
 			}
-			value.ForEach(func(key, value Result) bool {
+			for key, value := range value.ForEach() {
 				k := key.String()
 				if _, ok := kvals[k]; !ok {
 					keys = append(keys, key)
 				}
 				kvals[k] = value
-				return true
-			})
-			return true
-		})
+			}
+		}
 		for i := range keys {
 			if i > 0 {
 				out = append(out, ',')
@@ -3257,21 +3247,19 @@ func modGroup(json, arg string) string {
 		return ""
 	}
 	var all [][]byte
-	res.ForEach(func(key, value Result) bool {
+	for _, value := range res.ForEach() {
 		if !value.IsArray() {
-			return true
+			break
 		}
 		var idx int
-		value.ForEach(func(_, value Result) bool {
+		for key, value := range value.ForEach() {
 			if idx == len(all) {
 				all = append(all, []byte{})
 			}
 			all[idx] = append(all[idx], ("," + key.Raw + ":" + value.Raw)...)
 			idx++
-			return true
-		})
-		return true
-	})
+		}
+	}
 	var data []byte
 	data = append(data, '[')
 	for i, item := range all {
@@ -3439,10 +3427,9 @@ func (t Result) Paths(json string) []string {
 		return nil
 	}
 	paths := make([]string, 0, len(t.Indexes))
-	t.ForEach(func(_, value Result) bool {
+	for _, value := range t.ForEach() {
 		paths = append(paths, value.Path(json))
-		return true
-	})
+	}
 	if len(paths) != len(t.Indexes) {
 		return nil
 	}
@@ -3590,10 +3577,9 @@ func parseRecursiveDescent(all []Result, parent Result, path string) []Result {
 		all = append(all, res)
 	}
 	if parent.IsArray() || parent.IsObject() {
-		parent.ForEach(func(_, val Result) bool {
-			all = parseRecursiveDescent(all, val, path)
-			return true
-		})
+		for _, value := range parent.ForEach() {
+			all = parseRecursiveDescent(all, value, path)
+		}
 	}
 	return all
 }

@@ -159,25 +159,23 @@ func TestPath(t *testing.T) {
 	}
 
 	obj := Parse(json)
-	obj.ForEach(func(key, val Result) bool {
+	for key, val := range obj.ForEach() {
 		kp := key.Path(json)
 		assert(t, kp == "")
 		vp := val.Path(json)
 		if vp == "name" {
 			// there are two "name" keys
-			return true
+			break
 		}
 		val2 := obj.Get(vp)
 		assert(t, val2.Raw == val.Raw)
-		return true
-	})
+	}
 	arr := obj.Get("loggy.programmers")
-	arr.ForEach(func(_, val Result) bool {
+	for _, val := range arr.ForEach() {
 		vp := val.Path(json)
 		val2 := Get(json, vp)
 		assert(t, val2.Raw == val.Raw)
-		return true
-	})
+	}
 	get := func(path string) {
 		r1 := Get(json, path)
 		path2 := r1.Path(json)
@@ -405,23 +403,22 @@ func TestTypes(t *testing.T) {
 	assert(t, (Result{Type: Number, Num: 1}).Float() == 1)
 }
 func TestForEach(t *testing.T) {
-	Result{}.ForEach(nil)
-	Result{Type: String, Str: "Hello"}.ForEach(func(_, value Result) bool {
+	Result{}.ForEach()
+	result := Result{Type: String, Str: "Hello"}
+	for _, value := range result.ForEach() {
 		assert(t, value.String() == "Hello")
-		return false
-	})
-	Result{Type: JSON, Raw: "*invalid*"}.ForEach(nil)
+	}
+	Result{Type: JSON, Raw: "*invalid*"}.ForEach()
 
 	json := ` {"name": {"first": "Janet","last": "Prichard"},
 	"asd\nf":"\ud83d\udd13","age": 47}`
 	var count int
-	ParseBytes([]byte(json)).ForEach(func(key, value Result) bool {
+	for range ParseBytes([]byte(json)).ForEach() {
 		count++
-		return true
-	})
+	}
 	assert(t, count == 3)
-	ParseBytes([]byte(`{"bad`)).ForEach(nil)
-	ParseBytes([]byte(`{"ok":"bad`)).ForEach(nil)
+	ParseBytes([]byte(`{"bad`)).ForEach()
+	ParseBytes([]byte(`{"ok":"bad`)).ForEach()
 }
 func TestMap(t *testing.T) {
 	assert(t, len(ParseBytes([]byte(`"asdf"`)).Map()) == 0)
@@ -434,17 +431,17 @@ func TestMap(t *testing.T) {
 func TestBasic1(t *testing.T) {
 	mtok := get(basicJSON, `loggy.programmers`)
 	var count int
-	mtok.ForEach(func(key, value Result) bool {
+	for key, value := range mtok.ForEach() {
 		assert(t, key.Exists())
 		assert(t, key.String() == fmt.Sprint(count))
 		assert(t, key.Int() == int64(count))
 		count++
 		if count == 3 {
-			return false
+			break
 		}
 		if count == 1 {
 			i := 0
-			value.ForEach(func(key, value Result) bool {
+			for key, value := range value.ForEach() {
 				switch i {
 				case 0:
 					if key.String() != "firstName" ||
@@ -465,11 +462,9 @@ func TestBasic1(t *testing.T) {
 					}
 				}
 				i++
-				return true
-			})
+			}
 		}
-		return true
-	})
+	}
 	if count != 3 {
 		t.Fatalf("expected %v, got %v", 3, count)
 	}
@@ -2356,13 +2351,12 @@ func TestNaNInf(t *testing.T) {
 	}
 
 	var i int
-	Parse(json).ForEach(func(_, r Result) bool {
+	for _, r := range Parse(json).ForEach() {
 		assert(t, r.Raw == raws[i])
 		assert(t, r.Num == nums[i] || (math.IsNaN(r.Num) && math.IsNaN(nums[i])))
 		assert(t, r.Type == Number)
 		i++
-		return true
-	})
+	}
 
 	// Parse should also return valid numbers
 	assert(t, math.IsNaN(Parse("nan").Float()))
@@ -2498,12 +2492,11 @@ func TestArrayKeys(t *testing.T) {
 	}
 	json += "]"
 	var i int
-	Parse(json).ForEach(func(key, value Result) bool {
+	for key := range Parse(json).ForEach() {
 		assert(t, key.String() == fmt.Sprint(i))
 		assert(t, key.Int() == int64(i))
 		i++
-		return true
-	})
+	}
 	assert(t, i == N)
 }
 
